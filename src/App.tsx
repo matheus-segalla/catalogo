@@ -52,17 +52,23 @@ export default function App() {
       ...doc.data(),
     })) as Product[];
 
-    const idsExistentes = new Set(products.map((p) => p.id));
-    const filtrados = novos.filter((p) => !idsExistentes.has(p.id));
+    // ✅ Corrigido: impede duplicações com base nos IDs
+    setProducts((prev) => {
+      const idsExistentes = new Set(prev.map((p) => p.id));
+      const novosFiltrados = novos.filter((p) => !idsExistentes.has(p.id));
+      return [...prev, ...novosFiltrados];
+    });
 
-    setProducts((prev) => [...prev, ...filtrados]);
     setUltimoDoc(snapshot.docs[snapshot.docs.length - 1]);
     setTemMais(!snapshot.empty && snapshot.docs.length === 10);
     setCarregando(false);
 
-    const tiposUnicos = Array.from(new Set([...products, ...filtrados].map((p) => p.category)));
+    const tiposUnicos = Array.from(
+      new Set([...products, ...novos].map((p) => p.category))
+    );
     setTipos(tiposUnicos);
   };
+
 
   return (
     <div className="min-h-screen bg-gray-50 pb-16">

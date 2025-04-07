@@ -104,46 +104,45 @@ export function ProductList({
         <p className="text-gray-500 text-center">Nenhum produto encontrado.</p>
       ) : (
         Object.entries(grouped).map(([categoria, itens]) => (
-          <div key={categoria}>
-            <h3 className="text-xl font-bold text-blue-700 mb-2 border-b pb-1">{categoria}</h3>
-            <div className="space-y-4">
+          <div key={categoria} className="mb-6">
+            <h3 className="text-xl font-bold text-blue-700 mb-3 border-b pb-1">{categoria}</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {itens.map((p) => (
                 <div
                   key={p.id}
-                  className="flex items-center justify-between border rounded p-4 bg-white shadow-sm hover:shadow transition"
+                  className="border rounded-lg p-4 bg-white shadow hover:shadow-md transition flex flex-col"
                 >
-                  <div className="flex items-center gap-4">
-                    {p.image ? (
-                      <img
-                        src={p.image}
-                        alt={p.name}
-                        className="w-16 h-16 object-cover rounded border"
-                      />
-                    ) : (
-                      <div className="w-16 h-16 bg-gray-100 flex items-center justify-center rounded border text-gray-400 text-sm">
-                        Sem imagem
-                      </div>
-                    )}
-
-                    <div className="text-center">
-                      <p className="text-lg font-bold text-gray-900">{p.name}</p>
-                      <p className="text-sm text-gray-600">
-                        R$ {p.price?.toFixed(2)} por {p.unit}
-                      </p>
+                  {/* Imagem */}
+                  {p.image ? (
+                    <img
+                      src={p.image}
+                      alt={p.name}
+                      className="w-full h-32 object-cover rounded border mb-3"
+                    />
+                  ) : (
+                    <div className="w-full h-32 bg-gray-100 flex items-center justify-center rounded border text-gray-400 text-sm mb-3">
+                      Sem imagem
                     </div>
-                  </div>
+                  )}
 
-                  <div className="flex flex-col items-center gap-2 ml-4">
+                  {/* Informações */}
+                  <p className="text-base font-bold text-center text-gray-900">{p.name}</p>
+                  <p className="text-base text-center font-bold text-gray-900 mt-3">
+                    R$ {p.price?.toFixed(2)} por {p.unit}
+                  </p>
+
+                  {/* Botões */}
+                  <div className="mt-3 flex justify-center gap-4">
                     <button
                       onClick={() => setEditing(p)}
-                      className="text-blue-600 hover:text-blue-800 text-lg"
+                      className="text-blue-600 hover:text-blue-800 text-xl"
                       title="Editar"
                     >
                       ✏️
                     </button>
                     <button
                       onClick={() => setProdutoParaExcluir(p)}
-                      className="text-red-600 hover:text-red-800 text-lg"
+                      className="text-red-600 hover:text-red-800 text-xl"
                       title="Excluir"
                     >
                       🗑️
@@ -152,9 +151,11 @@ export function ProductList({
                 </div>
               ))}
             </div>
+
           </div>
         ))
       )}
+
 
       {/* Modal de exclusão */}
       {produtoParaExcluir && (

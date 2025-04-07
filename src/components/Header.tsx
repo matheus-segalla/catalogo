@@ -13,14 +13,13 @@ export function Header({
     <header className="bg-white shadow-md py-4 px-6 flex justify-between items-center">
       <h1 className="text-xl sm:text-2xl font-bold">
         <span className="text-orange-600">BENEVIS </span>
-        <span className="text-blue-600">Materiais para Construção</span>
       </h1>
 
       <nav className="flex gap-3">
         <button
-          className={`px-4 py-2 rounded text-sm font-semibold border border-red-500 ${activeTab === 'produtos'
-            ? 'bg-red-500 text-white'
-            : 'text-red-600 hover:bg-red-50'
+          className={`px-4 py-2 rounded text-sm font-semibold border border-orange-500 ${activeTab === 'produtos'
+            ? 'bg-orange-500 text-white'
+            : 'text-orange-600 hover:bg-red-50'
             }`}
           onClick={() => setActiveTab('produtos')}
         >
