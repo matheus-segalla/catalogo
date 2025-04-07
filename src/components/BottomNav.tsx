@@ -1,8 +1,8 @@
 import React from 'react';
 
 interface BottomNavProps {
-  activeTab: 'produtos' | 'adicionar' | 'orcamento' | 'clientes';
-  setActiveTab: (tab: 'produtos' | 'adicionar' | 'orcamento' | 'clientes') => void;
+  activeTab: 'produtos' | 'orcamento' | 'clientes';
+  setActiveTab: (tab: 'produtos' | 'orcamento' | 'clientes') => void;
 }
 
 export function BottomNav({ activeTab, setActiveTab }: BottomNavProps) {
@@ -14,13 +14,6 @@ export function BottomNav({ activeTab, setActiveTab }: BottomNavProps) {
       >
         🛒
         <span>Produtos</span>
-      </button>
-      <button
-        className={`flex flex-col items-center text-sm ${activeTab === 'adicionar' ? 'text-blue-600 font-semibold' : 'text-gray-500'}`}
-        onClick={() => setActiveTab('adicionar')}
-      >
-        ➕
-        <span>Adicionar</span>
       </button>
       <button
         onClick={() => setActiveTab('orcamento')}

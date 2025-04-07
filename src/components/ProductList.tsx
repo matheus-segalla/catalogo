@@ -1,54 +1,40 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Product } from '../types';
-import {
-  collection,
-  getDocs,
-  deleteDoc,
-  doc,
-  query,
-  orderBy,
-  limit,
-  startAfter,
-  QueryDocumentSnapshot
-} from 'firebase/firestore';
-import { db } from '../firebase';
+import { ConfirmDeleteModal } from './ConfirmDeleteModal';
 import { EditProductModal } from './EditProductModal';
+import { ProductForm } from './ProductForm';
+import { doc, deleteDoc } from 'firebase/firestore';
+import { db } from '../firebase';
+
+interface ProductListProps {
+  products: Product[];
+  setProducts: React.Dispatch<React.SetStateAction<Product[]>>;
+  carregarMaisProdutos: () => void;
+  temMais: boolean;
+}
 
 export function ProductList({
   products,
   setProducts,
-}: {
-  products: Product[];
-  setProducts: React.Dispatch<React.SetStateAction<Product[]>>;
-}) {
+  carregarMaisProdutos,
+  temMais,
+}: ProductListProps) {
   const [editing, setEditing] = useState<Product | null>(null);
   const [produtoParaExcluir, setProdutoParaExcluir] = useState<Product | null>(null);
   const [busca, setBusca] = useState('');
-  const [ultimoDoc, setUltimoDoc] = useState<QueryDocumentSnapshot | null>(null);
-  const [carregando, setCarregando] = useState(false);
-  const [temMais, setTemMais] = useState(true);
+  const [mostrarForm, setMostrarForm] = useState(false);
 
+  // 🔄 Scroll infinito
   useEffect(() => {
-    carregarMaisProdutos();
-  }, []);
-
-  const carregarMaisProdutos = async () => {
-    if (carregando || !temMais) return;
-
-    setCarregando(true);
-    const ref = collection(db, 'produtos');
-    const q = ultimoDoc
-      ? query(ref, orderBy('name'), startAfter(ultimoDoc), limit(10))
-      : query(ref, orderBy('name'), limit(10));
-
-    const snapshot = await getDocs(q);
-    const novos = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })) as Product[];
-
-    setProducts((prev) => [...prev, ...novos]);
-    setUltimoDoc(snapshot.docs[snapshot.docs.length - 1]);
-    setTemMais(!snapshot.empty && snapshot.docs.length === 10);
-    setCarregando(false);
-  };
+    const handleScroll = () => {
+      const pertoDoFim = window.innerHeight + window.scrollY >= document.body.offsetHeight - 300;
+      if (pertoDoFim && temMais) {
+        carregarMaisProdutos();
+      }
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [carregarMaisProdutos, temMais]);
 
   const produtosFiltrados = products.filter((p) =>
     p.name.toLowerCase().includes(busca.toLowerCase()) ||
@@ -65,14 +51,120 @@ export function ProductList({
     grouped[categoria].sort((a, b) => a.name.localeCompare(b.name));
   });
 
-  async function excluirProduto(id?: string) {
-    if (!id) return;
-    await deleteDoc(doc(db, 'produtos', id));
-    setProducts((prev) => prev.filter((p) => p.id !== id));
-  }
+  const confirmarExclusaoProduto = async () => {
+    if (!produtoParaExcluir || !produtoParaExcluir.id) return;
+
+    await deleteDoc(doc(db, 'produtos', produtoParaExcluir.id));
+    setProducts((prev) => prev.filter((p) => p.id !== produtoParaExcluir.id));
+    setProdutoParaExcluir(null);
+  };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
+      {/* Botão cadastrar + título */}
+      <div className="flex justify-between items-center mb-2">
+        <h2 className="text-xl font-bold text-blue-700">Produtos</h2>
+        <button
+          onClick={() => setMostrarForm(true)}
+          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 shadow text-sm"
+        >
+          ➕ Cadastrar Produto
+        </button>
+      </div>
+
+      {/* Campo de busca */}
+      <input
+        type="text"
+        placeholder="Buscar por nome ou tipo..."
+        value={busca}
+        onChange={(e) => setBusca(e.target.value)}
+        className="w-full border border-gray-300 rounded px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+      />
+
+      {/* Modal de formulário de cadastro */}
+      {mostrarForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded shadow max-w-md w-full relative">
+            <button
+              onClick={() => setMostrarForm(false)}
+              className="absolute top-2 right-3 text-gray-600 hover:text-red-600 text-xl"
+            >
+              ×
+            </button>
+            <ProductForm
+              setProducts={setProducts}
+              onClose={() => setMostrarForm(false)}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Lista de produtos por tipo */}
+      {Object.entries(grouped).length === 0 ? (
+        <p className="text-gray-500 text-center">Nenhum produto encontrado.</p>
+      ) : (
+        Object.entries(grouped).map(([categoria, itens]) => (
+          <div key={categoria}>
+            <h3 className="text-xl font-bold text-blue-700 mb-2 border-b pb-1">{categoria}</h3>
+            <div className="space-y-4">
+              {itens.map((p) => (
+                <div
+                  key={p.id}
+                  className="flex items-center justify-between border rounded p-4 bg-white shadow-sm hover:shadow transition"
+                >
+                  <div className="flex items-center gap-4">
+                    {p.image ? (
+                      <img
+                        src={p.image}
+                        alt={p.name}
+                        className="w-16 h-16 object-cover rounded border"
+                      />
+                    ) : (
+                      <div className="w-16 h-16 bg-gray-100 flex items-center justify-center rounded border text-gray-400 text-sm">
+                        Sem imagem
+                      </div>
+                    )}
+
+                    <div className="text-center">
+                      <p className="text-lg font-bold text-gray-900">{p.name}</p>
+                      <p className="text-sm text-gray-600">
+                        R$ {p.price?.toFixed(2)} por {p.unit}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col items-center gap-2 ml-4">
+                    <button
+                      onClick={() => setEditing(p)}
+                      className="text-blue-600 hover:text-blue-800 text-lg"
+                      title="Editar"
+                    >
+                      ✏️
+                    </button>
+                    <button
+                      onClick={() => setProdutoParaExcluir(p)}
+                      className="text-red-600 hover:text-red-800 text-lg"
+                      title="Excluir"
+                    >
+                      🗑️
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))
+      )}
+
+      {/* Modal de exclusão */}
+      {produtoParaExcluir && (
+        <ConfirmDeleteModal
+          onConfirm={confirmarExclusaoProduto}
+          onCancel={() => setProdutoParaExcluir(null)}
+        />
+      )}
+
+      {/* Modal de edição */}
       {editing && (
         <EditProductModal
           product={editing}
@@ -83,88 +175,6 @@ export function ProductList({
             )
           }
         />
-      )}
-
-      <div className="mb-4">
-        <input
-          type="text"
-          placeholder="Buscar por nome ou tipo..."
-          value={busca}
-          onChange={(e) => setBusca(e.target.value)}
-          className="w-full border border-gray-300 rounded px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-      </div>
-
-      {Object.entries(grouped).length === 0 ? (
-        <p className="text-gray-500">Nenhum produto encontrado.</p>
-      ) : (
-        Object.entries(grouped).map(([tipo, itens]) => (
-          <div key={tipo}>
-            <h3 className="text-xl font-bold text-blue-800 mb-4 border-b-2 border-blue-300 pb-1">
-              {tipo}
-            </h3>
-            <div className="space-y-4">
-              {itens.map((p) => (
-                <div
-                  key={p.id}
-                  className="flex flex-row items-center gap-4 border border-gray-200 rounded-xl px-2.5 py-2.5 sm:px-4 sm:py-4 bg-white shadow-sm hover:shadow-md transition"
-                >
-                  <div className="w-24 h-24 flex-shrink-0">
-                    {p.image ? (
-                      <img
-                        src={p.image}
-                        alt={p.name}
-                        className="w-full h-full object-cover rounded-md border border-gray-300"
-                      />
-                    ) : (
-                      <div className="w-full h-full bg-gray-100 border border-gray-300 rounded-md flex items-center justify-center text-gray-400 text-sm">
-                        Sem imagem
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex-1 flex justify-between items-end">
-                    <div className="w-full text-center">
-                      <p className="text-2xl sm:text-3xl font-bold text-gray-900">{p.name}</p>
-                      <p className="text-lg sm:text-xl text-gray-700 mt-1">
-                        R$ {(p.price ?? 0).toFixed(2)} por {p.unit}
-                      </p>
-                    </div>
-
-                    <div className="flex flex-col items-center gap-2 ml-4">
-                      <button
-                        onClick={() => setEditing(p)}
-                        className="text-blue-600 hover:text-blue-800 text-xl"
-                        title="Editar"
-                      >
-                        ✏️
-                      </button>
-                      <button
-                        onClick={() => setProdutoParaExcluir(p)}
-                        className="text-red-600 hover:text-red-800 text-xl"
-                        title="Excluir"
-                      >
-                        🗑️
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        ))
-      )}
-
-      {temMais && (
-        <div className="text-center mt-4">
-          <button
-            onClick={carregarMaisProdutos}
-            className="bg-gray-200 hover:bg-gray-300 px-4 py-2 text-sm rounded"
-            disabled={carregando}
-          >
-            {carregando ? 'Carregando...' : 'Carregar mais produtos'}
-          </button>
-        </div>
       )}
     </div>
   );

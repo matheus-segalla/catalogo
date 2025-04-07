@@ -1,6 +1,6 @@
 import React from 'react';
 
-type Aba = 'produtos' | 'adicionar' | 'orcamento' | 'clientes';
+type Aba = 'produtos' | 'orcamento' | 'clientes';
 
 export function Header({
   activeTab,
@@ -25,16 +25,6 @@ export function Header({
           onClick={() => setActiveTab('produtos')}
         >
           Produtos
-        </button>
-
-        <button
-          className={`px-4 py-2 rounded text-sm font-semibold border border-orange-500 ${activeTab === 'adicionar'
-            ? 'bg-orange-500 text-white'
-            : 'text-orange-600 hover:bg-orange-50'
-            }`}
-          onClick={() => setActiveTab('adicionar')}
-        >
-          Cadastrar
         </button>
 
         <button

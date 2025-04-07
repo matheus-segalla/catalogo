@@ -79,7 +79,6 @@ export function NovoOrcamento({ onVoltar, orcamentoExistente, onSalvarAtualizaca
   }, []);
 
 
-
   useEffect(() => {
     if (orcamentoExistente) {
       setCliente(orcamentoExistente.cliente);
@@ -141,25 +140,55 @@ export function NovoOrcamento({ onVoltar, orcamentoExistente, onSalvarAtualizaca
           {mensagemSucesso}
         </div>
       )}
-      <button
-        onClick={onVoltar}
-        className="text-blue-600 hover:text-blue-800 text-2xl mb-2"
-      >
-        ←
-      </button>
-      <div className="mt-6 flex justify-end">
+      <div className="flex justify-between items-center mb-4">
         <button
-          onClick={salvarOrcamento}
-          className="bg-green-600 hover:bg-green-700 text-white font-semibold px-6 py-2 rounded shadow"
+          onClick={onVoltar}
+          className="text-blue-600 hover:text-blue-800 text-2xl"
         >
-          {orcamentoExistente ? 'Salvar alterações' : 'Salvar orçamento e emitir pedido'}
+          ←
         </button>
+
+        <div className="ml-auto">
+          <button
+            onClick={salvarOrcamento}
+            className="bg-green-600 hover:bg-green-700 text-white font-semibold px-6 py-2 rounded shadow"
+          >
+            {orcamentoExistente ? 'Salvar alterações' : 'Salvar orçamento e emitir pedido'}
+          </button>
+        </div>
       </div>
+
 
       <h2 className="text-2xl font-bold text-center mb-6">Benevis Materiais para Construção</h2>
 
       <div className="grid sm:grid-cols-2 gap-4 mb-6">
-        <input type="text" placeholder="Nome do cliente" value={cliente} onChange={(e) => setCliente(e.target.value)} className="border p-2 rounded w-full" />
+        <div className="relative">
+          <input
+            type="text"
+            placeholder="Nome do cliente"
+            value={cliente}
+            onChange={(e) => {
+              const nome = e.target.value;
+              setCliente(nome);
+
+              const clienteEncontrado = clientesCadastrados.find(
+                (c) => c.nome.toLowerCase() === nome.toLowerCase()
+              );
+
+              if (clienteEncontrado) {
+                setTelefone(clienteEncontrado.telefone);
+                setEndereco(clienteEncontrado.endereco);
+              }
+            }}
+            list="sugestoes-clientes"
+            className="border p-2 rounded w-full"
+          />
+          <datalist id="sugestoes-clientes">
+            {clientesCadastrados.map((c) => (
+              <option key={c.id} value={c.nome} />
+            ))}
+          </datalist>
+        </div>
         <input type="text" placeholder="Telefone" value={telefone} onChange={(e) => setTelefone(e.target.value)} className="border p-2 rounded w-full" />
         <input type="date" value={data} onChange={(e) => setData(e.target.value)} className="border p-2 rounded w-full" />
         <input type="text" placeholder="Endereço de entrega" value={endereco} onChange={(e) => setEndereco(e.target.value)} className="border p-2 rounded w-full" />

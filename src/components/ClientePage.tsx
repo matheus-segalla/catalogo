@@ -1,14 +1,21 @@
 import React, { useEffect, useState } from 'react';
 import { db } from '../firebase';
+import { ConfirmDeleteModal } from './ConfirmDeleteModal';
 import {
     addDoc,
     collection,
     getDocs,
+    deleteDoc,
+    doc,
+    updateDoc,
     Timestamp,
+    query,
+    where,
 } from 'firebase/firestore';
+import { NovoOrcamento } from './NovoOrcamento';
 
 interface Cliente {
-    id?: string;
+    id: string;
     nome: string;
     telefone: string;
     endereco: string;
@@ -16,18 +23,42 @@ interface Cliente {
     criadoEm?: Timestamp;
 }
 
+interface Orcamento {
+    id: string;
+    cliente: string;
+    telefone: string;
+    data: string;
+    endereco: string;
+    itens: {
+        quantidade: number;
+        produto: string;
+        precoUnitario: number;
+        precoTotal: number;
+    }[];
+    criadoEm: Timestamp;
+}
+
 export function ClientePage() {
     const [clientes, setClientes] = useState<Cliente[]>([]);
     const [filtro, setFiltro] = useState('');
-    const [form, setForm] = useState<Cliente>({
+    const [form, setForm] = useState<Partial<Cliente>>({
         nome: '',
         telefone: '',
         endereco: '',
         observacoes: '',
     });
+    const [orcamentoParaExcluir, setOrcamentoParaExcluir] = useState<Orcamento | null>(null);
     const [mensagem, setMensagem] = useState('');
+    const [orcamentos, setOrcamentos] = useState<Orcamento[]>([]);
+    const [orcamentoSelecionado, setOrcamentoSelecionado] = useState<Orcamento | null>(null);
 
-    // Carregar clientes do Firebase
+    const excluirOrcamento = async () => {
+        if (!orcamentoParaExcluir) return;
+        await deleteDoc(doc(db, 'orcamentos', orcamentoParaExcluir.id));
+        setOrcamentos((prev) => prev.filter((o) => o.id !== orcamentoParaExcluir.id));
+        setOrcamentoParaExcluir(null);
+    };
+
     useEffect(() => {
         async function carregarClientes() {
             const snapshot = await getDocs(collection(db, 'clientes'));
@@ -39,6 +70,19 @@ export function ClientePage() {
         }
 
         carregarClientes();
+    }, []);
+
+    useEffect(() => {
+        async function carregarOrcamentos() {
+            const snapshot = await getDocs(collection(db, 'orcamentos'));
+            const lista = snapshot.docs.map((doc) => ({
+                id: doc.id,
+                ...doc.data(),
+            })) as Orcamento[];
+            setOrcamentos(lista);
+        }
+
+        carregarOrcamentos();
     }, []);
 
     const salvarCliente = async () => {
@@ -54,7 +98,7 @@ export function ClientePage() {
                 criadoEm: Timestamp.now(),
             });
 
-            setClientes([...clientes, { ...form, id: docRef.id }]);
+            setClientes([...clientes, { ...form, id: docRef.id } as Cliente]);
             setMensagem('Cliente cadastrado com sucesso!');
             setForm({ nome: '', telefone: '', endereco: '', observacoes: '' });
 
@@ -68,6 +112,23 @@ export function ClientePage() {
     const clientesFiltrados = clientes.filter((c) =>
         c.nome.toLowerCase().includes(filtro.toLowerCase())
     );
+
+    const handleSalvarAtualizacao = (orcamentoAtualizado: Orcamento) => {
+        setOrcamentoSelecionado(null);
+        setOrcamentos((prev) =>
+            prev.map((o) => (o.id === orcamentoAtualizado.id ? orcamentoAtualizado : o))
+        );
+    };
+
+    if (orcamentoSelecionado) {
+        return (
+            <NovoOrcamento
+                onVoltar={() => setOrcamentoSelecionado(null)}
+                orcamentoExistente={orcamentoSelecionado}
+                onSalvarAtualizacao={handleSalvarAtualizacao}
+            />
+        );
+    }
 
     return (
         <div className="bg-white p-4 rounded shadow-sm">
@@ -131,25 +192,75 @@ export function ClientePage() {
             {clientesFiltrados.length === 0 ? (
                 <p className="text-gray-500">Nenhum cliente encontrado.</p>
             ) : (
-                <ul className="space-y-2">
-                    {clientesFiltrados.map((c) => (
-                        <li
-                            key={c.id}
-                            className="border p-3 rounded shadow flex justify-between items-center"
-                        >
-                            <div>
-                                <p className="font-bold text-blue-800">{c.nome}</p>
-                                <p className="text-sm text-gray-600">{c.telefone} – {c.endereco}</p>
-                                {c.observacoes && (
-                                    <p className="text-xs text-gray-400 italic mt-1">
-                                        {c.observacoes}
+                <ul className="space-y-4">
+                    {clientesFiltrados.map((c) => {
+                        const orcamentosDoCliente = orcamentos.filter(
+                            (o) => o.cliente.toLowerCase() === c.nome.toLowerCase()
+                        );
+
+                        return (
+                            <li
+                                key={c.id}
+                                className="border p-4 rounded shadow-sm bg-gray-50"
+                            >
+                                <div className="mb-2">
+                                    <p className="font-bold text-blue-800">{c.nome}</p>
+                                    <p className="text-sm text-gray-600">
+                                        {c.telefone} – {c.endereco}
                                     </p>
+                                    {c.observacoes && (
+                                        <p className="text-xs text-gray-500 italic">
+                                            {c.observacoes}
+                                        </p>
+                                    )}
+                                </div>
+
+                                {orcamentosDoCliente.length > 0 && (
+                                    <div className="mt-2">
+                                        <p className="text-sm font-semibold text-gray-700 mb-1">Orçamentos:</p>
+                                        <ul className="space-y-1">
+                                            {orcamentosDoCliente.map((o) => (
+                                                <li
+                                                    key={o.id}
+                                                    onClick={() => setOrcamentoSelecionado(o)}
+                                                    className="cursor-pointer bg-white border p-2 rounded hover:bg-blue-50 flex justify-between items-center"
+                                                >
+                                                    <div className="flex items-center gap-3">
+                                                        <span>{o.data}</span>
+                                                        <span className="text-blue-700 font-medium">
+                                                            R$ {o.itens.reduce((s, i) => s + i.precoTotal, 0).toFixed(2)}
+                                                        </span>
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setOrcamentoParaExcluir(o);
+                                                            }}
+                                                            className="text-red-500 hover:text-red-700 text-sm"
+                                                            title="Excluir orçamento"
+                                                        >
+                                                            🗑️
+                                                        </button>
+
+                                                    </div>
+
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
                                 )}
-                            </div>
-                        </li>
-                    ))}
+                            </li>
+                        );
+                    })}
                 </ul>
             )}
+            {orcamentoParaExcluir && (
+                <ConfirmDeleteModal
+                    onConfirm={excluirOrcamento}
+                    onCancel={() => setOrcamentoParaExcluir(null)}
+                />
+            )}
+
         </div>
+
     );
 }

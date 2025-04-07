@@ -1,131 +1,125 @@
 import React, { useState } from 'react';
-import { Product } from '../types';
-import { collection, addDoc } from 'firebase/firestore';
 import { db } from '../firebase';
-import InputMask from 'react-input-mask';
+import { collection, addDoc, Timestamp } from 'firebase/firestore';
+import { Product } from '../types';
 
-function formatarPreco(valor: number) {
-  return valor.toLocaleString('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-    minimumFractionDigits: 2,
-  });
+interface ProductFormProps {
+  setProducts: React.Dispatch<React.SetStateAction<Product[]>>;
+  tiposSugestao?: string[];
+  onClose?: () => void;
 }
 
-export function ProductForm({
-  setProducts,
-  tiposSugestao,
-}: {
-  setProducts: React.Dispatch<React.SetStateAction<Product[]>>;
-  tiposSugestao: string[];
-}) {
-  const [form, setForm] = useState<Omit<Product, 'id'>>({
+export function ProductForm({ setProducts, tiposSugestao = [], onClose }: ProductFormProps) {
+  const [form, setForm] = useState({
     name: '',
     category: '',
-    price: 0,
-    unit: '',
+    price: '',
+    unit: 'UN',
     image: '',
   });
 
   const [mensagem, setMensagem] = useState('');
 
-  async function handleSubmit() {
-    if (!form.name || !form.category || !form.unit || form.price <= 0) {
-      setMensagem('⚠️ Preencha todos os campos corretamente.');
+  const unidades = [
+    'UN', 'KG', 'm', 'm²', 'm³', 'PC', 'L',
+    'LATA (0,9L)', 'GALÃO(3,6L)', 'LATA(18L)',
+    'SACO(15KG)', 'SACO(20KG)', 'SACO(50KG)',
+  ];
+
+  const salvarProduto = async () => {
+    if (!form.name || !form.category || !form.price || !form.unit) {
+      setMensagem('Preencha todos os campos!');
+      setTimeout(() => setMensagem(''), 3000);
       return;
     }
 
-    const docRef = await addDoc(collection(db, 'produtos'), form);
-    setProducts((prev) => [...prev, { ...form, id: docRef.id }]);
-    setMensagem('✅ Produto cadastrado com sucesso!');
-    setForm({ name: '', category: '', price: 0, unit: '', image: '' });
+    const novoProduto = {
+      ...form,
+      price: parseFloat(form.price),
+      criadoEm: Timestamp.now(),
+    };
 
-    setTimeout(() => setMensagem(''), 3000);
-  }
+    try {
+      const docRef = await addDoc(collection(db, 'produtos'), novoProduto);
+      setProducts((prev) => [...prev, { ...novoProduto, id: docRef.id }]);
+      setMensagem('Produto cadastrado com sucesso!');
+      setForm({ name: '', category: '', price: '', unit: 'UN', image: '' });
+
+      if (onClose) onClose();
+
+      setTimeout(() => setMensagem(''), 3000);
+    } catch (error) {
+      console.error('Erro ao cadastrar produto:', error);
+      setMensagem('Erro ao cadastrar produto.');
+    }
+  };
 
   return (
-    <div className="bg-white shadow-md rounded-lg p-6 mb-8 border border-gray-200">
-      <h2 className="text-xl font-semibold text-blue-700 mb-4">Cadastrar Novo Produto</h2>
-
-      <div className="grid sm:grid-cols-2 gap-4">
-        <input
-          type="text"
-          placeholder="Nome"
-          className="border border-gray-300 rounded px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
-          value={form.name}
-          onChange={(e) => setForm({ ...form, name: e.target.value })}
-        />
-
-        <div className="relative">
-          <input
-            type="text"
-            placeholder="Tipo"
-            value={form.category}
-            onChange={(e) => setForm({ ...form, category: e.target.value })}
-            className="border border-gray-300 rounded px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
-            list="sugestoes-tipo"
-          />
-          <datalist id="sugestoes-tipo">
-            {tiposSugestao.map((tipo, index) => (
-              <option key={index} value={tipo} />
-            ))}
-          </datalist>
-        </div>
-
-        <input
-          type="number"
-          step="0.01"
-          min="0"
-          placeholder="Preço"
-          value={form.price}
-          onChange={(e) =>
-            setForm({ ...form, price: parseFloat(e.target.value) || 0 })
-          }
-          className="border border-gray-300 rounded px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-
-
-        <select
-          value={form.unit}
-          onChange={(e) => setForm({ ...form, unit: e.target.value })}
-          className="border border-gray-300 rounded px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="">Selecione a unidade</option>
-          <option value="UN">UN</option>
-          <option value="KG">KG</option>
-          <option value="m">m</option>
-          <option value="m²">m²</option>
-          <option value="m³">m³</option>
-          <option value="PC">PC</option>
-          <option value="L">L</option>
-          <option value="LATA (0,9L)">LATA (0,9L)</option>
-          <option value="GALÃO (3,6L)">GALÃO (3,6L)</option>
-          <option value="LATA (18L)">LATA (18L)</option>
-          <option value="SACO (15KG)">SACO (15KG)</option>
-          <option value="SACO (20KG)">SACO (20KG)</option>
-          <option value="SACO (50KG)">SACO (50KG)</option>
-        </select>
-
-
-        <input
-          type="text"
-          placeholder="URL da Imagem (opcional)"
-          className="border border-gray-300 rounded px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-500 col-span-full"
-          value={form.image}
-          onChange={(e) => setForm({ ...form, image: e.target.value })}
-        />
-      </div>
-
-      <button
-        onClick={handleSubmit}
-        className="mt-4 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded shadow transition"
-      >
-        💾 Salvar Produto
-      </button>
+    <div className="space-y-4">
+      <h2 className="text-xl font-bold text-blue-700">Cadastrar Produto</h2>
 
       {mensagem && (
-        <div className="mt-3 text-sm text-green-600 font-medium">{mensagem}</div>
+        <div className="bg-blue-100 text-blue-700 text-sm px-4 py-2 rounded shadow">
+          {mensagem}
+        </div>
       )}
+
+      <input
+        type="text"
+        placeholder="Nome do produto"
+        value={form.name}
+        onChange={(e) => setForm({ ...form, name: e.target.value })}
+        className="w-full border px-3 py-2 rounded"
+      />
+
+      <input
+        type="text"
+        list="sugestoes-tipo"
+        placeholder="Tipo do produto"
+        value={form.category}
+        onChange={(e) => setForm({ ...form, category: e.target.value })}
+        className="w-full border px-3 py-2 rounded"
+      />
+      <datalist id="sugestoes-tipo">
+        {tiposSugestao.map((tipo, i) => (
+          <option key={i} value={tipo} />
+        ))}
+      </datalist>
+
+      <input
+        type="number"
+        inputMode="decimal"
+        step="0.01"
+        placeholder="Preço (ex: 9.90)"
+        value={form.price}
+        onChange={(e) => setForm({ ...form, price: e.target.value })}
+        className="w-full border px-3 py-2 rounded appearance-none"
+      />
+
+      <select
+        value={form.unit}
+        onChange={(e) => setForm({ ...form, unit: e.target.value })}
+        className="w-full border px-3 py-2 rounded"
+      >
+        {unidades.map((u) => (
+          <option key={u} value={u}>{u}</option>
+        ))}
+      </select>
+
+      <input
+        type="text"
+        placeholder="URL da imagem (opcional)"
+        value={form.image}
+        onChange={(e) => setForm({ ...form, image: e.target.value })}
+        className="w-full border px-3 py-2 rounded"
+      />
+
+      <button
+        onClick={salvarProduto}
+        className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 w-full"
+      >
+        Salvar Produto
+      </button>
     </div>
   );
 }
